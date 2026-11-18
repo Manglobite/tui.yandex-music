@@ -1,0 +1,54 @@
+# Build artifacts and local caches
+/.local/
+/yamusic
+/yamusic.exe
+/tui.yamusic
+/tui.yamusic.exe
+/dist/
+/bin/
+
+# Runtime data, credentials, logs
+/sessions/
+/AGENTS.md
+/.opencode/
+/doc/
+/screens/*
+!/screens/main.png
+!/screens/login.png
+!/screens/permissions.png
+/logs/
+*.log
+playback-*.log
+*.enc
+
+# Tests and coverage
+*.test
+*.test.exe
+/coverage.out
+/coverage.html
+*.prof
+*.pprof
+
+# Python caches (used by the research notes)
+__pycache__/
+*.py[cod]
+
+# Local environment
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Editors and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.directory
+
+# Temporary files
+.tmp-*
+*.tmp
