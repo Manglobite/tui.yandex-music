@@ -2,6 +2,7 @@ package audio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"os/exec"
@@ -9,6 +10,41 @@ import (
 	"testing"
 	"time"
 )
+
+func TestSpectrumPropertyUnavailableIsPending(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "ipc")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = listener.Close() }()
+	done := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		var req struct {
+			ID int `json:"request_id"`
+		}
+		if err := json.NewDecoder(conn).Decode(&req); err != nil {
+			done <- err
+			return
+		}
+		done <- json.NewEncoder(conn).Encode(map[string]any{"request_id": req.ID, "error": "property unavailable"})
+	}()
+	p := &MPV{socket: socket, done: make(chan struct{}), process: &exec.Cmd{}, spectrumInstalled: spectrumGroups}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err := p.Spectrum(ctx, 0, true); !errors.Is(err, ErrSpectrumPending) {
+		t.Fatal("expected pending spectrum metadata", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestSpectrumIPCDeadline(t *testing.T) {
 	socket := filepath.Join(t.TempDir(), "ipc")

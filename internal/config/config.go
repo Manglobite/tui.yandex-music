@@ -14,11 +14,12 @@ const (
 	ClientSecret = "YAMUSIC_CLIENT_SECRET"
 	StreamKey    = "YAMUSIC_STREAM_KEY"
 	Logs         = "YAMUSIC_LOGS"
+	Spectrum     = "YAMUSIC_SPECTRUM"
 )
 
 type Config struct {
 	ClientID, ClientSecret, StreamKey string
-	LogsEnabled                       bool
+	LogsEnabled, SpectrumEnabled      bool
 }
 
 func Load(path string) (Config, error) {
@@ -37,7 +38,7 @@ func Load(path string) (Config, error) {
 				return Config{}, fmt.Errorf(".env: ожидалось ИМЯ=значение, строка %d", line)
 			}
 			key = strings.TrimSpace(key)
-			if key == ClientID || key == ClientSecret || key == StreamKey || key == Logs {
+			if key == ClientID || key == ClientSecret || key == StreamKey || key == Logs || key == Spectrum {
 				values[key] = strings.TrimSpace(value)
 			}
 		}
@@ -54,12 +55,18 @@ func Load(path string) (Config, error) {
 		return values[key]
 	}
 	cfg := Config{ClientID: get(ClientID), ClientSecret: get(ClientSecret), StreamKey: get(StreamKey)}
-	if value := get(Logs); value != "" {
-		enabled, err := strconv.ParseBool(value)
-		if err != nil {
-			return Config{}, fmt.Errorf("%s: ожидается true или false", Logs)
+	cfg.SpectrumEnabled = true
+	for _, option := range []struct {
+		key string
+		dst *bool
+	}{{Logs, &cfg.LogsEnabled}, {Spectrum, &cfg.SpectrumEnabled}} {
+		if value := get(option.key); value != "" {
+			enabled, err := strconv.ParseBool(value)
+			if err != nil {
+				return Config{}, fmt.Errorf("%s: ожидается true или false", option.key)
+			}
+			*option.dst = enabled
 		}
-		cfg.LogsEnabled = enabled
 	}
 	return cfg, nil
 }

@@ -16,6 +16,8 @@ import (
 	"tui.yamusic/internal/logfile"
 )
 
+var errPropertyUnavailable = errors.New("mpv: свойство временно недоступно")
+
 type Backend interface {
 	Generation() uint64
 	Advance() uint64
@@ -175,11 +177,14 @@ func (p *MPV) Command(ctx context.Context, generation uint64, args ...any) (json
 		if response.ID != 1 {
 			continue
 		}
-		if response.Error != "success" {
-			return nil, fmt.Errorf("mpv: команда %v не выполнена", args[0])
-		}
 		if generation != p.Generation() {
 			return nil, context.Canceled
+		}
+		if response.Error == "property unavailable" {
+			return nil, errPropertyUnavailable
+		}
+		if response.Error != "success" {
+			return nil, fmt.Errorf("mpv: команда %v не выполнена", args[0])
 		}
 		return response.Data, nil
 	}

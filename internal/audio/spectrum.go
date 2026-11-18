@@ -88,6 +88,9 @@ func (p *MPV) Spectrum(ctx context.Context, generation uint64, enabled bool) ([S
 	var levels [SpectrumBands]float64
 	for group := range spectrumGroups {
 		raw, err := p.Command(ctx, generation, "get_property", "af-metadata/"+spectrumName(group))
+		if errors.Is(err, errPropertyUnavailable) {
+			return zero, ErrSpectrumPending
+		}
 		if err != nil {
 			return zero, err
 		}

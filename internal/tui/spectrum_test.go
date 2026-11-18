@@ -80,14 +80,18 @@ func TestSpectrumLifecycle(t *testing.T) {
 	result.err = fmt.Errorf("missing lavfi")
 	next, cmd = m.Update(result)
 	m = *next.(*liveModel)
-	if m.spectrumOn || !m.playing || !m.loaded || m.spectrumHint == "" {
-		t.Fatal("not fail open")
+	if !m.spectrumOn || !m.playing || !m.loaded || m.spectrumHint == "" || cmd == nil {
+		t.Fatal("spectrum failure must leave playback and spectrum enabled and schedule a retry")
 	}
-	if cmd != nil {
-		cmd()
+	next, cmd = m.Update(spectrumTick{m.spectrumEpoch})
+	m = *next.(*liveModel)
+	if cmd == nil {
+		t.Fatal("missing retry read")
 	}
-	if m.readSpectrum() != nil {
-		t.Fatal("error polls")
+	next, _ = m.Update(cmd())
+	m = *next.(*liveModel)
+	if m.spectrumHint != "" || m.spectrumLevels[0] != 1 {
+		t.Fatal("spectrum did not recover without a keypress")
 	}
 }
 
@@ -132,6 +136,21 @@ func TestSpectrumPendingMetadata(t *testing.T) {
 	m = *next.(*liveModel)
 	if !m.spectrumOn || retry == nil || p.removes != 0 || m.spectrumHint != "" {
 		t.Fatal("pending metadata disabled visualization")
+	}
+}
+
+func TestSpectrumStartsDisabledAndTogglesWithV(t *testing.T) {
+	m, err := NewLive(context.Background(), music.New(music.Credentials{}), &meterAudio{}, nil, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := m.(liveModel)
+	if n.spectrumOn {
+		t.Fatal("startup setting ignored")
+	}
+	next, _ := n.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	if !next.(*liveModel).spectrumOn {
+		t.Fatal("V did not enable spectrum")
 	}
 }
 

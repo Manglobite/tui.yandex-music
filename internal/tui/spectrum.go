@@ -12,6 +12,8 @@ import (
 
 const spectrumInterval = 100 * time.Millisecond
 const spectrumTimeout = 80 * time.Millisecond
+const spectrumRetryInterval = time.Second
+const spectrumUnsupported = "нет поддержки backend"
 
 type spectrumAudio interface {
 	Spectrum(context.Context, uint64, bool) ([audio.SpectrumBands]float64, error)
@@ -35,13 +37,17 @@ func (m *liveModel) resetSpectrum() {
 }
 
 func (m *liveModel) scheduleSpectrum() tea.Cmd {
-	if !m.spectrumOn || !m.loaded || !m.playing || m.playback == "BUFFERING" || m.spectrumTimer || m.spectrumBusy {
+	if !m.spectrumOn || !m.loaded || !m.playing || m.playback == "BUFFERING" || m.spectrumTimer || m.spectrumBusy || m.spectrumHint == spectrumUnsupported {
 		return nil
 	}
 	m.spectrumTimer = true
 	epoch, ctx := m.spectrumEpoch, m.ctx
+	interval := spectrumInterval
+	if m.spectrumHint != "" {
+		interval = spectrumRetryInterval
+	}
 	return func() tea.Msg {
-		timer := time.NewTimer(spectrumInterval)
+		timer := time.NewTimer(interval)
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
@@ -58,8 +64,7 @@ func (m *liveModel) readSpectrum() tea.Cmd {
 	}
 	p, ok := m.audio.(spectrumAudio)
 	if !ok {
-		m.spectrumOn = false
-		m.spectrumHint = "нет поддержки backend"
+		m.spectrumHint = spectrumUnsupported
 		return nil
 	}
 	m.spectrumBusy = true
@@ -123,7 +128,7 @@ func (m model) spectrumView() string {
 		label = "BAND ENERGY · V выкл"
 	}
 	if m.spectrumHint != "" {
-		label = "BAND ENERGY · " + m.spectrumHint + " · V повторить"
+		label = "BAND ENERGY · " + m.spectrumHint + " · V выкл"
 	}
 	rows := spectrumRows(m.spectrumLevels, min(m.width, max(audio.SpectrumBands, m.width-30)))
 	if m.spectrumHint != "" {

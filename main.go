@@ -59,7 +59,7 @@ func run() error {
 	player := audio.New(*mpv, filepath.Join(root, ".local", "runtime"), logger)
 	defer player.Close()
 	client := music.New(music.Credentials{ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, StreamKey: cfg.StreamKey})
-	m, err := tui.NewLive(ctx, client, player, logger, filepath.Join(root, ".local", "credentials", "token.enc"))
+	m, err := tui.NewLive(ctx, client, player, logger, filepath.Join(root, ".local", "credentials", "token.enc"), cfg.SpectrumEnabled)
 	if err != nil {
 		return err
 	}

@@ -232,6 +232,9 @@ func (m *liveModel) startTrack(index int) tea.Cmd {
 		m.notice = "Трек недоступен в вашем регионе / по подписке"
 		return nil
 	}
+	if m.spectrumHint != spectrumUnsupported {
+		m.spectrumHint = ""
+	}
 	if m.audioCancel != nil {
 		m.audioCancel()
 	}
@@ -389,12 +392,15 @@ func (m liveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return &m, m.scheduleSpectrum()
 		}
 		if msg.err != nil {
-			m.log.Record("spectrum_error", m.generation, "", "disabled", msg.err, 0)
-			m.spectrumOn = false
+			if m.spectrumHint == "" {
+				m.log.Record("spectrum_error", m.generation, "", "retry", msg.err, 0)
+			}
+			m.spectrumLevels = [audio.SpectrumBands]float64{}
 			m.spectrumHint = "lavfi/metadata недоступны"
-			return &m, m.disableSpectrum()
+			return &m, m.scheduleSpectrum()
 		}
 		if m.spectrumOn && m.playing && m.loaded {
+			m.spectrumHint = ""
 			m.spectrumLevels = msg.levels
 		}
 		return &m, m.scheduleSpectrum()
@@ -935,9 +941,10 @@ func (m *liveModel) handleLiveDialog(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func NewLive(ctx context.Context, client music.Client, player audio.Backend, log *logfile.Log, vaultPath string) (tea.Model, error) {
+func NewLive(ctx context.Context, client music.Client, player audio.Backend, log *logfile.Log, vaultPath string, spectrumEnabled bool) (tea.Model, error) {
 	m := newLive(ctx, client, player)
 	m.log, m.vaultPath = log, vaultPath
+	m.spectrumOn = spectrumEnabled
 	if _, err := os.Lstat(vaultPath); err == nil {
 		m.dialog = "unlock"
 		m.busy = false
